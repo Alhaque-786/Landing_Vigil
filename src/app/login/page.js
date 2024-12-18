@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import { Shield } from 'lucide-react';
 
@@ -8,8 +9,10 @@ export default function LoginPage() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
+    userName: '', // New field for username
   });
 
+  const [error, setError] = useState(null);
   const router = useRouter();
 
   const handleChange = (e) => {
@@ -20,10 +23,47 @@ export default function LoginPage() {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Login Data:', formData);
-    // Add login logic here
+    setError(null);
+
+    try {
+      // Sending the request with only email, password, and userName
+      const response = await axios.post('https://vigil-ai.azurewebsites.net/login', {
+        email: formData.email,
+        password: formData.password,
+        userName: formData.userName,
+      });
+
+      console.log('Login successful:', response.data);
+
+      // Save token in session storage
+      const token = response.data?.token?.result;
+      if (token) {
+        sessionStorage.setItem('authToken', token);
+        console.log('Token saved to session storage');
+      }
+
+      // Redirect user to dashboard on successful login
+      router.push('/dashboard');
+    } catch (err) {
+      console.error('Login error:', err);
+
+      if (err.response) {
+        const status = err.response.status;
+        if (status === 401) {
+          setError('Unauthorized: Invalid email or password.');
+        } else if (status === 400) {
+          setError('Bad Request: Please check your inputs.');
+        } else if (status === 500) {
+          setError('Server Error: Please try again later.');
+        } else {
+          setError('An unexpected error occurred. Please try again.');
+        }
+      } else {
+        setError('Network error: Please check your connection.');
+      }
+    }
   };
 
   const handleGoogleLogin = () => {
@@ -39,7 +79,7 @@ export default function LoginPage() {
           <Shield className="h-10 w-10 text-blue-600" />
           <h1 className="text-3xl font-bold text-gray-800 ml-2">PropGuard</h1>
         </div>
-        
+
         <h2 className="text-2xl font-semibold text-center text-gray-800 mb-6">Welcome Back</h2>
         <p className="text-sm text-gray-600 text-center mb-6">
           Login to access your account
@@ -49,7 +89,9 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Email */}
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              Email
+            </label>
             <input
               type="email"
               id="email"
@@ -64,7 +106,9 @@ export default function LoginPage() {
 
           {/* Password */}
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              Password
+            </label>
             <input
               type="password"
               id="password"
@@ -76,6 +120,26 @@ export default function LoginPage() {
               required
             />
           </div>
+
+          {/* User Name */}
+          <div>
+            <label htmlFor="userName" className="block text-sm font-medium text-gray-700">
+              Username
+            </label>
+            <input
+              type="text"
+              id="userName"
+              name="userName"
+              value={formData.userName}
+              onChange={handleChange}
+              placeholder="Enter your username"
+              className="mt-2 block w-full px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              required
+            />
+          </div>
+
+          {/* Error Message */}
+          {error && <p className="text-red-600 text-sm">{error}</p>}
 
           {/* Submit Button */}
           <div>
@@ -102,7 +166,7 @@ export default function LoginPage() {
         {/* Register Redirect */}
         <div className="text-center mt-6">
           <span className="text-sm text-gray-600">
-            Dont have an account?{' '}
+            Don’t have an account?{' '}
             <button
               type="button"
               onClick={() => router.push('/register')}
